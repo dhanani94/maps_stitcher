@@ -1,6 +1,6 @@
-from geo import Point, LatLng, LatLngBounds, Projection
-import urllib
-import math
+from urllib.parse import urlencode
+
+from geo import Point, LatLng, Projection
 
 MAX_SIZE = 9999
 
@@ -104,4 +104,5 @@ class TileMachine(object):
         base = 'https://maps.googleapis.com/maps/api/staticmap?'
         params = dict(center='{0},{1}'.format(latlng.lat, latlng.lng))
         params.update(kwargs)
-        return '{0}{1}&{2}'.format(base, urllib.urlencode(params), '&'.join(self.extra_params))
+
+        return '{0}{1}&{2}'.format(base, urlencode(params), '&'.join(self.extra_params))

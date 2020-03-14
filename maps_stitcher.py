@@ -48,8 +48,6 @@ def init(project):
     tile_machine = TileMachine(size=args.size, zoom=args.zoom, scale=args.scale, format=args.format,
                                maptype=args.maptype, params=unknown)
 
-    def tiles_to_json(tiles): return map(lambda tile: {'url': tile.url, 'x': tile.x, 'y': tile.y}, tiles)
-
     def parse_latlng(latlng_str): return map(lambda a: float(a), latlng_str.split(',', 2))
 
     bounds = LatLngBounds(
@@ -69,8 +67,8 @@ def init(project):
             'northeast': args.northeast
         },
         'tiles': {
-            'primary': tiles_to_json(tiles['primary']),
-            'half': tiles_to_json(tiles['half'])
+            'primary': [{'url': tile.url, 'x': tile.x, 'y': tile.y} for tile in tiles['primary']],
+            'half': [{'url': tile.url, 'x': tile.x, 'y': tile.y} for tile in tiles['half']]
         }
     }
 

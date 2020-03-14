@@ -19,8 +19,9 @@ class TileStitcher(object):
 
     def stitch(self):
         im = Image.new('RGB', (self.size * self.x_tiles, self.size * self.y_tiles))
+        half_offset = int(-self.size / 2)
         self.combine_tiles(im, self.primary)
-        self.combine_tiles(im, self.half, prefix='half-', offset=-self.size / 2, crop=True)
+        self.combine_tiles(im, self.half, prefix='half-', offset=half_offset, crop=True)
 
         return im
 
