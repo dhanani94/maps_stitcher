@@ -13,6 +13,7 @@ import os
 
 TILES_FILE_NAME = 'tiles.json'
 
+
 def download(project):
     parser = argparse.ArgumentParser()
     parser.add_argument('--key', action='store', required=True, help='Google API key')
@@ -27,27 +28,34 @@ def download(project):
         downloader = TileDownloader(tiles_path, json.load(tiles_json), args.key, args.skip)
         downloader.download()
 
+
 def init(project):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--zoom', action='store', type=int, default=1, help='Zoom level between 0 (world) to 21+ (street).')
+    parser.add_argument('--zoom', action='store', type=int, default=1,
+                        help='Zoom level between 0 (world) to 21+ (street).')
     parser.add_argument('--scale', action='store', type=int, default=1, help='Scale of image (1, 2, 4)')
     parser.add_argument('--size', action='store', type=int, default=640, help='Size of image')
     parser.add_argument('--format', action='store', default='gif', help='File type')
     parser.add_argument('--maptype', action='store', default='roadmap', help='Map type')
-    parser.add_argument('--southwest', action='store', required=True, help='Southwest latitude and longitude. e.g. --southwest=39.1,-83.2')
-    parser.add_argument('--northeast', action='store', required=True, help='Northeast latitude and longitude, e.g. --northeast=40.3,-82.4')
+    parser.add_argument('--southwest', action='store', required=True,
+                        help='Southwest latitude and longitude. e.g. --southwest=39.1,-83.2')
+    parser.add_argument('--northeast', action='store', required=True,
+                        help='Northeast latitude and longitude, e.g. --northeast=40.3,-82.4')
     args, unknown = parser.parse_known_args()
 
     project_path = path.join(os.getcwd(), project)
 
-    tile_machine = TileMachine(size=args.size, zoom=args.zoom, scale=args.scale, format=args.format, maptype=args.maptype, params=unknown)
-    def tiles_to_json(tiles): return map(lambda tile: { 'url': tile.url, 'x': tile.x, 'y': tile.y }, tiles)
+    tile_machine = TileMachine(size=args.size, zoom=args.zoom, scale=args.scale, format=args.format,
+                               maptype=args.maptype, params=unknown)
+
+    def tiles_to_json(tiles): return map(lambda tile: {'url': tile.url, 'x': tile.x, 'y': tile.y}, tiles)
+
     def parse_latlng(latlng_str): return map(lambda a: float(a), latlng_str.split(',', 2))
 
     bounds = LatLngBounds(
         LatLng(*parse_latlng(args.southwest)),
         LatLng(*parse_latlng(args.northeast)))
-    
+
     mkpath(project_path)
     tiles = tile_machine.tiles_from_bounds(bounds)
     tiles_file = open(path.join(project_path, TILES_FILE_NAME), 'w')
@@ -68,6 +76,7 @@ def init(project):
 
     json.dump(ouput, tiles_file)
 
+
 def stitch(project):
     parser = argparse.ArgumentParser()
     parser.add_argument('--save', action='store', default='output.gif', help='File name')
@@ -82,12 +91,13 @@ def stitch(project):
         stitcher = TileStitcher(tiles_path, json.load(tiles_json))
         image = stitcher.stitch()
         image.save(output_path, args.format)
-    
+
 
 def main(args):
     commands = dict(download=download, stitch=stitch, init=init)
     if args.command in commands:
         commands[args.command](args.project)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

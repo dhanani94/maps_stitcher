@@ -6,3 +6,4 @@ pip-selfcheck.json
 *.pyc
 *.swp
 .DS_Store
+/.idea/

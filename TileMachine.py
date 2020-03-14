@@ -6,6 +6,7 @@ MAX_SIZE = 9999
 
 projection = Projection()
 
+
 class Tile(object):
     def __init__(self, x, y, url):
         self.x = x
@@ -15,10 +16,11 @@ class Tile(object):
     def __str__(self):
         return self.url
 
+
 class TileMachine(object):
     def __init__(self, size, zoom, scale, format, maptype, params):
         self.size = size
-        self.zoom = zoom 
+        self.zoom = zoom
         self.scale = scale
         self.zoom_scale = 1 << self.zoom
         self.format = format
@@ -77,7 +79,7 @@ class TileMachine(object):
             return True
 
         return False
-     
+
     def latlng_to_tile(self, latlng, x, y, params):
         url = self.generate_google_static_map_url_from_latlng(latlng, **params)
         return Tile(x, y, url)
