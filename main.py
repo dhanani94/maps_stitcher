@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-from geo import LatLng, LatLngBounds
-from TileMachine import TileMachine
-from TileDownloader import TileDownloader
-from TileStitcher import TileStitcher
+from src.geo import LatLng, LatLngBounds
+from src.TileMachine import TileMachine
+from src.TileDownloader import TileDownloader
+from src.TileStitcher import TileStitcher
 
 from distutils.dir_util import mkpath
 import argparse

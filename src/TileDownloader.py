@@ -29,7 +29,7 @@ class TileDownloader(object):
             batch = filter(lambda tile: not os.path.isfile(tile_path(self.tiles_path, prefix, tile['x'], tile['y'])),
                            batch)
             print('batch_size', len(batch))
-
+        all_urls = [f'{tile["url"]}&key={self.key}' for tile in batch]
         rs = (grequests.get('{0}&key={1}'.format(tile['url'], self.key)) for tile in batch)
         responses = grequests.map(rs)
 

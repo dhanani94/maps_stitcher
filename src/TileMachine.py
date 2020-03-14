@@ -1,6 +1,6 @@
 from urllib.parse import urlencode
 
-from geo import Point, LatLng, Projection
+from src.geo import Point, LatLng, Projection
 
 MAX_SIZE = 9999
 
