@@ -55,7 +55,7 @@ def main(args, config_data):
     logger.info("downloading tiles")
     Path(tiles_path).mkdir(parents=True, exist_ok=True)
     tile_downloader = TileDownloader(tile_machine.tiles_info_dict, tiles_path, api_key, style_url=style_url)
-    tile_downloader.download()
+    tile_downloader.download(redownload=True)
 
     logger.info("stitching tiles")
     stitcher = TileStitcher(tiles_path, tile_machine.tiles_info_dict)

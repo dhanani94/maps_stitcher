@@ -29,22 +29,38 @@ class TileDownloader(object):
                     url += f"&{param}"
         return url
 
-    def download(self):
-        self.download_tiles(self.primary)
-        self.download_tiles(self.half, prefix='half-')
+    def download(self, redownload=True):
+        self.download_tiles(self.primary, redownload=redownload)
+        self.download_tiles(self.half, prefix='half-', redownload=redownload)
 
-    def download_tiles(self, tiles, prefix='', batch_size=10):
+    def download_tiles(self, tiles, prefix='', batch_size=10, redownload=True):
         for start_index in range(0, len(tiles), batch_size):
             end_index = min(start_index + batch_size, len(tiles))
             batch = tiles[start_index:end_index]
 
             tile_file_paths = [create_tile_path(self.output_dir, prefix, tile['x'], tile['y']) for tile in batch]
             tile_urls = [self.create_url(tile) for tile in batch]
+            logger.info(f'downloading images: {start_index} to {end_index} out of {len(tiles)}')
+
+            if redownload is False:
+                filtered_tile_urls = []
+                filtered_file_paths = []
+                ignore_count = 0
+                for index in range(len(tile_file_paths)):
+                    if not os.path.exists(tile_file_paths[index]):
+                        filtered_file_paths.append(tile_file_paths[index])
+                        filtered_tile_urls.append(tile_urls[index])
+                    else:
+                        ignore_count += 1
+                tile_urls = filtered_tile_urls
+                tile_file_paths = filtered_file_paths
+                if ignore_count > 0:
+                    logger.info(f'ignoring {ignore_count} files since already downloaded')
+
             rs = (grequests.get(url) for url in tile_urls)
             responses = grequests.map(rs)
 
-            logger.info(f'downloading images: {start_index} to {end_index} out of {len(tiles)}')
-            for index in range(len(batch)):
+            for index in range(len(tile_file_paths)):
                 response = responses[index]
                 tile_file = tile_file_paths[index]
                 if response.status_code == 200:
