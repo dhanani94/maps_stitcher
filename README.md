@@ -36,8 +36,13 @@ Using this [Styling Wizard](https://mapstyle.withgoogle.com/), customize the goo
 
 #### Example
 
-Boston:
-* `python main.py --southwest=42.2964353,-71.1283869 --northeast=42.3711888,-71.0059885 --zoom=16 --scale=2 --dir ./output/boston`
-
-San Francisco
-* `python main.py -c ./config/taufiq_config.json --southwest=37.708894,-122.502316 --northeast=37.808034,-122.358378 --zoom=15 --scale=2 --dir ./output/san_francisco`
+##### Boston:
+`python main.py --southwest=42.2764353,-71.1283869 --northeast=42.3911888,-71.0026712 --zoom=16 --scale=2 --dir ./output/boston`
+##### San Francisco
+`python main.py -southwest=37.708894,-122.502316 --northeast=37.808034,-122.358378 --zoom=15 --scale=2 --dir ./output/san_francisco`
+##### Atlanta
+`python main.py --southwest=41.8392585,-87.7476355 --northeast=41.9905838,-87.5991916 --zoom=15 --scale=2 --dir ./output/chicago`
+##### Chicago 
+`python main.py --southwest=41.8392585,-87.7476355 --northeast=41.9905838,-87.5991916 --zoom=15 --scale=2 --dir ./output/chicago`
+##### Toronto
+`python main.py --southwest=43.5635821,-79.5803259 --northeast=43.7526241,-79.2872906 --zoom=13 --scale=2 --dir ./output/toronto`
