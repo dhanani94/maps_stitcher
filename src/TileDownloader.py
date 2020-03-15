@@ -3,6 +3,7 @@ import json
 import os
 import os.path as path
 import logging
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +18,15 @@ class TileDownloader(object):
         self.style_url = style_url
         self.base_url = 'https://maps.googleapis.com/maps/api/staticmap'
 
-        # self.skip = skip #TODO: implement later
-
     def create_url(self, tile):
         url = f'{self.base_url}?{tile["url_param_str"]}&key={self.api_key}'
-        # todo: add in style url stuff too
+        if not self.style_url:
+            return url
+        else:
+            query_params = urlparse(self.style_url).query
+            for param in query_params.split("&"):
+                if param.split("=")[0] == "style":
+                    url += f"&{param}"
         return url
 
     def download(self):
@@ -32,13 +37,13 @@ class TileDownloader(object):
         for start_index in range(0, len(tiles), batch_size):
             end_index = min(start_index + batch_size, len(tiles))
             batch = tiles[start_index:end_index]
-            logger.debug(f'working with batch_size: {len(batch)}')
 
             tile_file_paths = [create_tile_path(self.output_dir, prefix, tile['x'], tile['y']) for tile in batch]
             tile_urls = [self.create_url(tile) for tile in batch]
             rs = (grequests.get(url) for url in tile_urls)
             responses = grequests.map(rs)
 
+            logger.info(f'downloading images: {start_index} to {end_index} out of {len(tiles)}')
             for index in range(len(batch)):
                 response = responses[index]
                 tile_file = tile_file_paths[index]

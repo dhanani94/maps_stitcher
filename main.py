@@ -14,8 +14,12 @@ from src.TileStitcher import TileStitcher
 logger = logging.getLogger(__name__)
 
 
-def initialise_logger():
-    level = logging.DEBUG
+def initialise_logger(logging_mode="INFO"):
+    if logging_mode.upper() == "INFO":
+        level = logging.INFO
+    else:
+        level = logging.DEBUG
+
     date_format = "%Y-%m-%d %H:%M:%S"
     console_log_format = "%(asctime)-13s [%(levelname)s] %(name)-12s: %(message)s"
     stream_log_format = logging.Formatter(fmt=console_log_format, datefmt=date_format)
@@ -32,7 +36,7 @@ def initialise_logger():
 def main(args, config_data):
     api_key = config_data["GOOGLE_API_KEY"]
     style_url = config_data.get("STYLE_URL")
-    tile_info_file = config_data.get("TILE_INFO_FILE", "tile_info.json")
+    tile_info_file = config_data.get("TILE_INFO_FILE", None)
 
     logger.info(f"initialising project directory: {args.project_dir}")
     Path(args.project_dir).mkdir(parents=True, exist_ok=True)
@@ -40,21 +44,23 @@ def main(args, config_data):
     output_image_path = path.join(args.project_dir, f"output.{args.file_type}")
 
     logger.info("initialising tile counts, offsets, and urls")
-    tiles_info_output_file = os.path.join(args.project_dir, tile_info_file)
     tile_machine = TileMachine(args.size, args.zoom, args.scale, args.maptype, args.south_west,
                                args.north_east)
     tile_machine.calculate_tiles()
-    tile_machine.save_tile_info(tiles_info_output_file)
+    if tile_info_file is not None:
+        logger.info(f"saving tile info file to: {tile_info_file}")
+        tiles_info_output_file = os.path.join(args.project_dir, tile_info_file)
+        tile_machine.save_tile_info(tiles_info_output_file)
 
     logger.info("downloading tiles")
     Path(tiles_path).mkdir(parents=True, exist_ok=True)
-    tile_downloader = TileDownloader(tile_machine.tiles_info_dict, tiles_path, api_key)
+    tile_downloader = TileDownloader(tile_machine.tiles_info_dict, tiles_path, api_key, style_url=style_url)
     tile_downloader.download()
 
     logger.info("stitching tiles")
     stitcher = TileStitcher(tiles_path, tile_machine.tiles_info_dict)
-    image = stitcher.stitch()
-    image.save(output_image_path)
+    stitcher.stitch()
+    stitcher.save_image(output_image_path)
 
 
 if __name__ == '__main__':

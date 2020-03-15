@@ -1,4 +1,6 @@
 {
   "GOOGLE_API_KEY": "INSERT_KEY_HERE",
-  "TILE_INFO_FILE": "tile_info.json"
+  "TILE_INFO_FILE": "tile_info.json",
+  "LOGGING_MODE": "INFO",
+  "STYLE_URL": null
 }

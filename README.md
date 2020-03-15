@@ -1,9 +1,7 @@
 Maps Stitcher
 =============
 
-Downloads and generates an image of a map given a latitude and longitude bounds.
-
-You can find some [sample output on Flickr here](https://www.flickr.com/photos/haochi/sets/72157653869432590). 
+Downloads and generates an image of a map given a latitude and longitude bounds. This was largely based off [Haochi's work](https://github.com/haochi/maps_stitcher) and is only slightly modified. 
 
 Environment
 -----------
@@ -11,38 +9,35 @@ Environment
 Running this script requires Python, plus some libraries.
 You can see the dependencies in the `requirements.txt` file.
 
-It's test with Python 2.7.6 inside [virtualenv](https://pypi.python.org/pypi/virtualenv)
+I've verified that this works with python 3.8 using a [conda](https://www.anaconda.com/distribution/#download-section) environment
 
 Usage
 -----
 
-There are three steps to generate the image:
+To use this, there are a few pre-reqs:
+* Get an API key from [Google Developers](https://developers.google.com/maps/gmp-get-started#api-key)
+    * Specifically using the "Maps Static API"
+* Know the latitude, longitude, and zoom variables for the area you want to capture
+    * specifically the northeast corner and the southwest corner
+* Have python 3.8 enabled (conda, virtualenv, etc.)
+* After cloning the repo, be sure to update the `GOOGLE_API_KEY` value in the config/configuration.json file
 
-* Initialize the project with the latitude and longitude bounds (plus some other configurations)
-* Download the necessary tiles with your [Google API key](https://developers.google.com/maps/documentation/javascript/tutorial#api_key)
-* Stitch the tiles into the final image
+Actually run the program (example below):
+```shell script
+git clone git@github.com:dhanani94/maps_stitcher.git
+cd maps_stitcher
+pip -r requirements.txt
+python main.py -c ./config/taufiq_config.json --southwest=42.2964353,-71.1283869 --northeast=42.3711888,-71.0059885 --zoom=16 --scale=2 --dir ./output/boston
+```
+For more options run `python main.py -h`
 
-The corresponding commands are (example):
-
-* `maps_stitcher.py init PROJECT_NAME`: This will create a folder by the given project name in the current working directory.
-    * `--southwest`: (**required**, comma separated latitude and longitude pair) south west bound
-    * `--northeast`: (**required**, comma separated latitude and longitude pair) north east bound
-    * `--zoom`: (optional, integer, default=1) [zoom level](https://developers.google.com/maps/documentation/staticmaps/#Zoomlevels), [1, 21+]
-    * `--scale`: (optional, integer, default=1) [scale](https://developers.google.com/maps/documentation/staticmaps/#scale_values), (1, 2, 4)
-    * `--size`: (option, integer, default=640) [size](https://developers.google.com/maps/documentation/staticmaps/#Imagesizes), [1, 2048]
-    * `--format`: (optional, string, default=gif) Image format ([supported formats](https://developers.google.com/maps/documentation/static-maps/intro#ImageFormats))
-    * `--maptype`: (optional, string, default=roadmap) Map type ([supported formats](https://developers.google.com/maps/documentation/static-maps/intro#MapTypes))
-
-
-* `maps_stitcher.py download PROJECT_NAME`: This will start downloading the tiles
-    * `--key`: (**required**, string) [Google API key](https://developers.google.com/maps/documentation/javascript/tutorial#api_key)
-
-* `maps_stitcher.py stitch PROJECT_NAME`: This will stitch the tiles and generate the map
-    * `--save`: (optional, string, default=output.gif) File name
-    * `--format`: (optional, string, default=gif) File format ([supported formats](http://pillow.readthedocs.org/en/latest/handbook/image-file-formats.html))
+## Customising (optional)
+Using this [Styling Wizard](https://mapstyle.withgoogle.com/), customize the google map as you please. When you're done, click the "finish" button and `COPY URL`. Then in the config, create a new key called "STYLE_URL" and paste the entire content as a string for the value. 
 
 #### Example
 
-* `./maps_stitcher.py init san_francisco --southwest=37.708894,-122.502316 --northeast=37.808034,-122.358378 --zoom=15 --scale=2`
-* `./maps_stitcher.py download san_francisco --key=ABCDEFG`
-* `./maps_stitcher.py stitch san_francisco --output=sf.jpg`
+Boston:
+* `python main.py --southwest=42.2964353,-71.1283869 --northeast=42.3711888,-71.0059885 --zoom=16 --scale=2 --dir ./output/boston`
+
+San Francisco
+* `python main.py -c ./config/taufiq_config.json --southwest=37.708894,-122.502316 --northeast=37.808034,-122.358378 --zoom=15 --scale=2 --dir ./output/san_francisco`
