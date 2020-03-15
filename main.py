@@ -1,106 +1,82 @@
 #!/usr/bin/env python
 
-from src.geo import LatLng, LatLngBounds
-from src.TileMachine import TileMachine
-from src.TileDownloader import TileDownloader
-from src.TileStitcher import TileStitcher
-
-from distutils.dir_util import mkpath
 import argparse
 import json
-import os.path as path
+import logging
 import os
+import os.path as path
+from pathlib import Path
 
-TILES_FILE_NAME = 'tiles.json'
+from src.TileDownloader import TileDownloader
+from src.TileMachine import TileMachine
+from src.TileStitcher import TileStitcher
 
-
-def download(project):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--key', action='store', required=True, help='Google API key')
-    parser.add_argument('--skip', action='store_true', help='Redownload existing tiles')
-    args, unknown = parser.parse_known_args()
-
-    project_path = path.join(os.getcwd(), project)
-    tiles_path = path.join(project_path, 'tiles')
-    mkpath(tiles_path)
-
-    with open(path.join(project_path, TILES_FILE_NAME)) as tiles_json:
-        downloader = TileDownloader(tiles_path, json.load(tiles_json), args.key, args.skip)
-        downloader.download()
+logger = logging.getLogger(__name__)
 
 
-def init(project):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--zoom', action='store', type=int, default=1,
-                        help='Zoom level between 0 (world) to 21+ (street).')
-    parser.add_argument('--scale', action='store', type=int, default=1, help='Scale of image (1, 2, 4)')
-    parser.add_argument('--size', action='store', type=int, default=640, help='Size of image')
-    parser.add_argument('--format', action='store', default='gif', help='File type')
-    parser.add_argument('--maptype', action='store', default='roadmap', help='Map type')
-    parser.add_argument('--southwest', action='store', required=True,
-                        help='Southwest latitude and longitude. e.g. --southwest=39.1,-83.2')
-    parser.add_argument('--northeast', action='store', required=True,
-                        help='Northeast latitude and longitude, e.g. --northeast=40.3,-82.4')
-    args, unknown = parser.parse_known_args()
+def initialise_logger():
+    level = logging.DEBUG
+    date_format = "%Y-%m-%d %H:%M:%S"
+    console_log_format = "%(asctime)-13s [%(levelname)s] %(name)-12s: %(message)s"
+    stream_log_format = logging.Formatter(fmt=console_log_format, datefmt=date_format)
 
-    project_path = path.join(os.getcwd(), project)
+    main_logger = logging.getLogger("")
+    main_logger.setLevel(level)
 
-    tile_machine = TileMachine(size=args.size, zoom=args.zoom, scale=args.scale, format=args.format,
-                               maptype=args.maptype, params=unknown)
-
-    def parse_latlng(latlng_str): return map(lambda a: float(a), latlng_str.split(',', 2))
-
-    bounds = LatLngBounds(
-        LatLng(*parse_latlng(args.southwest)),
-        LatLng(*parse_latlng(args.northeast)))
-
-    mkpath(project_path)
-    tiles = tile_machine.tiles_from_bounds(bounds)
-    tiles_file = open(path.join(project_path, TILES_FILE_NAME), 'w')
-
-    ouput = {
-        'config': {
-            'zoom': args.zoom,
-            'size': args.size,
-            'scale': args.scale,
-            'southwest': args.southwest,
-            'northeast': args.northeast
-        },
-        'tiles': {
-            'primary': [{'url': tile.url, 'x': tile.x, 'y': tile.y} for tile in tiles['primary']],
-            'half': [{'url': tile.url, 'x': tile.x, 'y': tile.y} for tile in tiles['half']]
-        }
-    }
-
-    json.dump(ouput, tiles_file)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level)
+    stream_handler.setFormatter(stream_log_format)
+    main_logger.addHandler(stream_handler)
 
 
-def stitch(project):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--save', action='store', default='output.gif', help='File name')
-    parser.add_argument('--format', action='store', default='GIF', help='File type')
-    args, unknown = parser.parse_known_args()
+def main(args, config_data):
+    api_key = config_data["GOOGLE_API_KEY"]
+    style_url = config_data.get("STYLE_URL")
+    tile_info_file = config_data.get("TILE_INFO_FILE", "tile_info.json")
 
-    project_path = path.join(os.getcwd(), project)
-    tiles_path = path.join(project_path, 'tiles')
-    output_path = path.join(project_path, args.save)
+    logger.info(f"initialising project directory: {args.project_dir}")
+    Path(args.project_dir).mkdir(parents=True, exist_ok=True)
+    tiles_path = path.join(args.project_dir, 'tiles')
+    output_image_path = path.join(args.project_dir, f"output.{args.file_type}")
 
-    with open(path.join(project_path, TILES_FILE_NAME)) as tiles_json:
-        stitcher = TileStitcher(tiles_path, json.load(tiles_json))
-        image = stitcher.stitch()
-        image.save(output_path, args.format)
+    logger.info("initialising tile counts, offsets, and urls")
+    tiles_info_output_file = os.path.join(args.project_dir, tile_info_file)
+    tile_machine = TileMachine(args.size, args.zoom, args.scale, args.maptype, args.south_west,
+                               args.north_east)
+    tile_machine.calculate_tiles()
+    tile_machine.save_tile_info(tiles_info_output_file)
 
+    logger.info("downloading tiles")
+    Path(tiles_path).mkdir(parents=True, exist_ok=True)
+    tile_downloader = TileDownloader(tile_machine.tiles_info_dict, tiles_path, api_key)
+    tile_downloader.download()
 
-def main(args):
-    commands = dict(download=download, stitch=stitch, init=init)
-    if args.command in commands:
-        commands[args.command](args.project)
+    logger.info("stitching tiles")
+    stitcher = TileStitcher(tiles_path, tile_machine.tiles_info_dict)
+    image = stitcher.stitch()
+    image.save(output_image_path)
 
 
 if __name__ == '__main__':
+    initialise_logger()
     parser = argparse.ArgumentParser()
-    parser.add_argument('command', action='store', help='Command to execute (init, download, stitch)')
-    parser.add_argument('project', action='store', help='Directory to store this project in')
-    args, unknown = parser.parse_known_args()
+    parser.add_argument('--config', '-c', dest='config', default='config/configuration.json',
+                        help='file that contains the configuration values')
+    parser.add_argument('--zoom', '-z', dest='zoom', type=int, default=1,
+                        help='Zoom level between 0 (world) to 21+ (street).')
+    parser.add_argument('--scale', dest='scale', type=int, default=1, help='Scale of image (1, 2, 4)')
+    parser.add_argument('--size', dest='size', type=int, default=640, help='Size of image')
+    parser.add_argument('--maptype', dest='maptype', default='roadmap', help='Map type')
+    parser.add_argument('--southwest', dest='south_west', required=True,
+                        help='Southwest latitude and longitude. e.g. --southwest=39.1,-83.2')
+    parser.add_argument('--northeast', dest='north_east', required=True,
+                        help='Northeast latitude and longitude, e.g. --northeast=40.3,-82.4')
+    parser.add_argument('--ftype', dest='file_type', default='png', help='Output file type')
+    parser.add_argument('--dir', dest='project_dir', default='./output', help='Project directory name')
+    args = parser.parse_args()
 
-    main(args)
+    logger.info("reading configuration")
+    with open(args.config, 'r') as f:
+        config_data = json.load(f)
+
+    main(args, config_data)

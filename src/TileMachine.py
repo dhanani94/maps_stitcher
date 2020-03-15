@@ -1,39 +1,47 @@
+import json
+import logging
+import os
 from urllib.parse import urlencode
 
-from src.geo import Point, LatLng, Projection
+from src.geo import LatLng, LatLngBounds
+from src.geo import Point, Projection
 
 MAX_SIZE = 9999
 
 projection = Projection()
+logger = logging.getLogger(__name__)
 
 
 class Tile(object):
-    def __init__(self, x, y, url):
+    def __init__(self, x, y, url_param_str):
         self.x = x
         self.y = y
-        self.url = url
+        self.url_param_str = url_param_str
 
     def __str__(self):
-        return self.url
+        return self.url_param_str
 
 
 class TileMachine(object):
-    def __init__(self, size, zoom, scale, format, maptype, params):
+    def __init__(self, size, zoom, scale, maptype, south_west, north_east, params=None):
         self.size = size
         self.zoom = zoom
         self.scale = scale
         self.zoom_scale = 1 << self.zoom
-        self.format = format
         self.maptype = maptype
-        self.extra_params = filter(lambda param: '=' in param, params)
+        self.south_west = south_west
+        self.north_east = north_east
+        self.bounds = LatLngBounds(south_west, north_east)
+        self.tiles_info_dict = None
+        # self.extra_params = filter(lambda param: '=' in param, params) #TODO: add support for extra params?
 
-    def tiles_from_bounds(self, bounds):
+    def calculate_tiles(self):
         primary_tiles = []
         half_way_tiles = []
         max_x = max_y = 0
 
         params = dict(zoom=self.zoom, scale=self.scale, size='{0}x{0}'.format(self.size),
-                      format=self.format, maptype=self.maptype)
+                      maptype=self.maptype)
 
         """ generate an (x, y) grid based on the given bounds
             [*][*][*]
@@ -41,10 +49,10 @@ class TileMachine(object):
         """
         for y in range(MAX_SIZE):
             for x in range(MAX_SIZE):
-                if not self.add_tile(bounds, x, y, primary_tiles, half_way_tiles, params):
+                if not self.add_tile(self.bounds, x, y, primary_tiles, half_way_tiles, params):
                     max_x = max(max_x, x)
                     break
-            if not bounds.contains(self.get_latlng_from_tile_at(bounds, 0, y)):
+            if not self.bounds.contains(self.get_latlng_from_tile_at(self.bounds, 0, y)):
                 max_y = max(max_y, y)
                 break
 
@@ -54,14 +62,26 @@ class TileMachine(object):
             [ ][ ][ ][ ]
         """
         for y in range(max_y):
-            self.add_tile(bounds, max_x, y, None, half_way_tiles, params, skip_check=True)
+            self.add_tile(self.bounds, max_x, y, None, half_way_tiles, params, skip_check=True)
 
         for x in range(max_x):
-            self.add_tile(bounds, x, max_y, None, half_way_tiles, params, skip_check=True)
+            self.add_tile(self.bounds, x, max_y, None, half_way_tiles, params, skip_check=True)
 
-        self.add_tile(bounds, max_x, max_y, None, half_way_tiles, params, skip_check=True)
+        self.add_tile(self.bounds, max_x, max_y, None, half_way_tiles, params, skip_check=True)
 
-        return dict(primary=primary_tiles, half=half_way_tiles)
+        self.tiles_info_dict = {
+            'config': {
+                'zoom': self.zoom,
+                'size': self.size,
+                'scale': self.scale,
+                'southwest': self.south_west,
+                'northeast': self.north_east
+            },
+            'tiles': {
+                'primary': [{'url_param_str': tile.url_param_str, 'x': tile.x, 'y': tile.y} for tile in primary_tiles],
+                'half': [{'url_param_str': tile.url_param_str, 'x': tile.x, 'y': tile.y} for tile in half_way_tiles]
+            }
+        }
 
     def add_tile(self, bounds, x, y, primary_tiles, half_way_tiles, params, skip_check=False):
         latlng = self.get_latlng_from_tile_at(bounds, x, y)
@@ -81,8 +101,8 @@ class TileMachine(object):
         return False
 
     def latlng_to_tile(self, latlng, x, y, params):
-        url = self.generate_google_static_map_url_from_latlng(latlng, **params)
-        return Tile(x, y, url)
+        url_param_str = self.generate_google_map_param_str_from_latlng(latlng, **params)
+        return Tile(x, y, url_param_str)
 
     def get_latlng_from_tile_at(self, bounds, x, y):
         scale = self.size / float(self.zoom_scale)
@@ -100,9 +120,13 @@ class TileMachine(object):
         half_title_away = Point(half + center.x, half + center.y)
         return projection.fromPointToLatLng(half_title_away)
 
-    def generate_google_static_map_url_from_latlng(self, latlng, **kwargs):
-        base = 'https://maps.googleapis.com/maps/api/staticmap?'
+    @staticmethod
+    def generate_google_map_param_str_from_latlng(latlng, **kwargs):
         params = dict(center='{0},{1}'.format(latlng.lat, latlng.lng))
         params.update(kwargs)
+        return str(urlencode(params))
 
-        return '{0}{1}&{2}'.format(base, urlencode(params), '&'.join(self.extra_params))
+    def save_tile_info(self, out_file_name):
+        logger.info(f"saving file: {out_file_name}")
+        with open(out_file_name, 'w') as f:
+            json.dump(self.tiles_info_dict, f)

@@ -2,57 +2,53 @@ import grequests
 import json
 import os
 import os.path as path
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TileDownloader(object):
-    def __init__(self, tiles_path, tiles_json, key, skip):
-        tiles = tiles_json['tiles']
-        self.tiles_path = tiles_path
-        self.key = key
+    def __init__(self, tiles_info_dict, output_dir, api_key, style_url=None):
+        self.api_key = api_key
+        self.config = tiles_info_dict['config']
+        self.primary = tiles_info_dict['tiles']['primary']
+        self.half = tiles_info_dict['tiles']['half']
+        self.output_dir = output_dir
+        self.style_url = style_url
+        self.base_url = 'https://maps.googleapis.com/maps/api/staticmap'
 
-        self.config = tiles_json['config']
-        self.primary = tiles['primary']
-        self.half = tiles['half']
-        self.skip = skip
+        # self.skip = skip #TODO: implement later
+
+    def create_url(self, tile):
+        url = f'{self.base_url}?{tile["url_param_str"]}&key={self.api_key}'
+        # todo: add in style url stuff too
+        return url
 
     def download(self):
         self.download_tiles(self.primary)
         self.download_tiles(self.half, prefix='half-')
 
-    def download_tiles(self, tiles, prefix=''):
-        batches = chunks(tiles, 10)
-        for batch in batches:
-            self.download_batch(batch, prefix)
+    def download_tiles(self, tiles, prefix='', batch_size=10):
+        for start_index in range(0, len(tiles), batch_size):
+            end_index = min(start_index + batch_size, len(tiles))
+            batch = tiles[start_index:end_index]
+            logger.debug(f'working with batch_size: {len(batch)}')
 
-    def download_batch(self, batch, prefix):
-        if self.skip:
-            batch = filter(lambda tile: not os.path.isfile(tile_path(self.tiles_path, prefix, tile['x'], tile['y'])),
-                           batch)
-            print('batch_size', len(batch))
-        all_urls = [f'{tile["url"]}&key={self.key}' for tile in batch]
-        rs = (grequests.get('{0}&key={1}'.format(tile['url'], self.key)) for tile in batch)
-        responses = grequests.map(rs)
+            tile_file_paths = [create_tile_path(self.output_dir, prefix, tile['x'], tile['y']) for tile in batch]
+            tile_urls = [self.create_url(tile) for tile in batch]
+            rs = (grequests.get(url) for url in tile_urls)
+            responses = grequests.map(rs)
 
-        for index in range(len(batch)):
-            response = responses[index]
-            tile = batch[index]
-            if response.status_code == 200:
-                file_name = tile_path(self.tiles_path, prefix, tile['x'], tile['y'])
-                save_response_to(response, file_name)
-            else:
-                print(response.status_code)
+            for index in range(len(batch)):
+                response = responses[index]
+                tile_file = tile_file_paths[index]
+                if response.status_code == 200:
+                    with open(tile_file, 'wb') as f:
+                        for chunk in response.iter_content():
+                            f.write(chunk)
+                else:
+                    logger.error(response)
 
 
-def tile_path(directory, prefix, x, y):
+def create_tile_path(directory, prefix, x, y):
     return path.join(directory, '{prefix:s}{x:d}x{y:d}'.format(prefix=prefix, x=x, y=y))
-
-
-def save_response_to(response, path):
-    with open(path, 'wb') as f:
-        for chunk in response.iter_content():
-            f.write(chunk)
-
-
-def chunks(l, n):
-    for i in range(0, len(l), n):
-        yield l[i:i + n]

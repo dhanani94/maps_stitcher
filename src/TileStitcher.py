@@ -3,11 +3,11 @@ import os.path as path
 
 
 class TileStitcher(object):
-    def __init__(self, tiles_path, tiles_json):
-        tiles = tiles_json['tiles']
+    def __init__(self, tiles_path, tiles_info_dict):
+        tiles = tiles_info_dict['tiles']
 
         self.tiles_path = tiles_path
-        self.config = tiles_json['config']
+        self.config = tiles_info_dict['config']
         self.primary = tiles['primary']
         self.half = tiles['half']
 

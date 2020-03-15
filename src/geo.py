@@ -1,14 +1,24 @@
 import math
+import logging
 
 EPSILON = 1e-10
 LAT_MAX = 90
 LNG_MAX = 180
 
+logger = logging.getLogger(__name__)
+
 
 class LatLngBounds(object):
     def __init__(self, south_west, north_east):
-        self.south_west = LatLng(south_west.lat, south_west.lng)
-        self.north_east = LatLng(north_east.lat, north_east.lng)
+        if type(south_west) == str:
+            logger.debug("converting south_west coordinate to float")
+            south_west = [float(a) for a in south_west.split(",", 2)]
+        if type(north_east) == str:
+            logger.debug("converting north_east coordinate to float")
+            north_east = [float(a) for a in north_east.split(",", 2)]
+
+        self.south_west = LatLng(south_west[0], south_west[1])
+        self.north_east = LatLng(north_east[0], north_east[1])
 
     def contains(self, latlng):
         ne = self.north_east
@@ -80,7 +90,7 @@ class Projection(object):
     def fromPointToLatLng(self, point):
         lat = (2 * math.atan(
             math.exp((point.y - self.MID_POINT.y) / - (self.PIXELS / (2 * math.pi)))) - math.pi / 2) / (
-                          math.pi / (self.DEGREES_IN_CIRCLE / 2))
+                      math.pi / (self.DEGREES_IN_CIRCLE / 2))
         lng = (point.x - self.MID_POINT.x) / self.PIXELS_PER_DEGREE
         return LatLng(lat, lng)
 
